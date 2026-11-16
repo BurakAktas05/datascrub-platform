@@ -24,3 +24,28 @@ graph TD
         Spring <-->|Dosya Okuma/Yazma| Storage[(Shared File Storage)]
         FastAPI <-->|Dosya Okuma/Yazma| Storage
     end
+sequenceDiagram
+    autonumber
+    actor U as Kullanıcı (React)
+    participant S as Spring Boot (Core)
+    participant DB as PostgreSQL
+    participant FS as Shared Storage
+    participant P as Python FastAPI (Engine)
+
+    U->>S: POST /api/v1/jobs/clean (CSV Dosyası + Kurallar JSON)
+    S->>FS: Ham dosyayı kaydet (/raw/job_123.csv)
+    S->>DB: İş kaydı oluştur (Status: PROCESSING)
+    S->>P: POST /internal/v1/process (Dosya Yolu + Kurallar JSON)
+    
+    activate P
+    P->>FS: Ham dosyayı oku (Pandas DataFrame)
+    P->>P: Temizlik kurallarını uygula (NumPy & Pandas)
+    P->>FS: Temiz dosyayı yaz (/cleaned/job_123_clean.csv)
+    P-->>S: 200 OK (Öncesi/Sonrası İstatistik Raporu JSON)
+    deactivate P
+
+    S->>DB: Kaydı güncelle (Status: COMPLETED, Stats JSON)
+    S-->>U: 200 OK (Job ID + Rapor Özeti)
+    U->>S: GET /api/v1/jobs/{jobId}/download
+    S->>FS: Temiz dosyayı oku
+    S-->>U: temiz_veri.csv İndirme Akışı
