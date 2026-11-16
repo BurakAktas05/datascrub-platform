@@ -24,6 +24,15 @@ graph TD
         Spring <-->|Dosya Okuma/Yazma| Storage[(Shared File Storage)]
         FastAPI <-->|Dosya Okuma/Yazma| Storage
     end
+```
+
+---
+
+## 2. Veri Akışı ve Sıralama Diyagramı (Sequence Diagram)
+
+Bir kullanıcının kirli bir `.csv` dosyasını yükleyip temizletme sürecindeki adım adım servisler arası iletişim:
+
+```mermaid
 sequenceDiagram
     autonumber
     actor U as Kullanıcı (React)
@@ -49,3 +58,15 @@ sequenceDiagram
     U->>S: GET /api/v1/jobs/{jobId}/download
     S->>FS: Temiz dosyayı oku
     S-->>U: temiz_veri.csv İndirme Akışı
+```
+
+---
+
+## 3. Mimari Kararlar ve Gerekçeler (ADR - Architecture Decision Records)
+
+* **Neden Dosyanın Kendisi Yerine Dosya Yolu (File Path) Gönderiliyor?**  
+  Spring Boot ve FastAPI aynı Docker ağı üzerinde ortak bir disk alanını (`Shared Volume`) paylaşır. 50 MB'lık bir dosyayı servisler arasında HTTP üzerinden tekrar tekrar transfer etmek yerine sadece dosya yolunu (`/storage/raw/dosya.csv`) JSON içinde göndermek ağ gecikmesini (latency) ve RAM tüketimini minimuma indirir.
+* **Neden İlk Fazda Senkron REST Tercih Edildi?**  
+  MVP aşamasında sistem karmaşıklığını (overengineering) önlemek için Spring Boot ve FastAPI arasında doğrudan senkron HTTP iletişimi kurulmuştur. Büyük ölçekli dosyalarda (100 MB+) darboğaz oluşması durumunda Faz 2'de araya RabbitMQ/Kafka mesaj kuyruğu eklenecektir.
+* **Neden Python FastAPI Dış Dünyaya Kapalı?**  
+  Tüm güvenlik, rate-limiting ve yetkilendirme kontrolleri tek bir merkezden (Spring Security) yönetilmektedir. FastAPI yalnızca iş mantığına ve veri hesaplamasına odaklanır.
